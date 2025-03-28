@@ -15,7 +15,7 @@ setuptools.setup(
     description="PharmaGob repositories, mongodb implementation",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url=f"https://{LIB_NAME}.git",
+    url=f"https://github.com/PharmaGobierno/{LIB_NAME}.git",
     include_package_data=True,
     keywords="pharmagob, domain, mongodb, library, python",
     packages=setuptools.find_packages(),
