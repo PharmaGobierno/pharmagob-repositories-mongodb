@@ -18,7 +18,7 @@ setuptools.setup(
     url=f"https://github.com/PharmaGobierno/{LIB_NAME}.git",
     include_package_data=True,
     keywords="pharmagob, domain, mongodb, library, python",
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_namespace_packages(),
     package_data={"": ["*.json"]},
     namespace_packages=["pharmagob"],
     install_requires=requirements_list,
