@@ -17,20 +17,20 @@ class BaseMongoDbRepository:
             update=update,
             upsert=False,  # Only update, not insert
         )
-        return result.modified_count
+        return result.modified_count  # number of documents that were modified
 
     def set(
         self, document_id, *, data: dict, write_only_if_insert: bool = False
     ) -> int:
         update = {"$set": data}
-        if write_only_if_insert:
+        if write_only_if_insert:  # Only write if document not exists
             update = {"$setOnInsert": data}
         result = self._collection.update_one(
             {"_id": document_id},
             update=update,
             upsert=True,  # updated or insert
         )
-        return result.modified_count
+        return result.matched_count  # number of documents that matched the _id
 
     def get(
         self,
