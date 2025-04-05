@@ -1,4 +1,4 @@
-from ._base import BaseMongoDbRepository
+from .base import BaseMongoDbRepository
 
 
 class ShipmentDetailRepository(BaseMongoDbRepository):

@@ -10,11 +10,25 @@ class BaseMongoDbRepository:
     def create(self, data: dict) -> None:
         self._collection.insert_one(data)
 
-    def update(self, document_id, data: dict, *, upsert: bool = False) -> int:
+    def update(self, document_id, *, data: dict) -> int:
+        update = {"$set": data}
         result = self._collection.update_one(
             {"_id": document_id},
-            {"$set": data},
-            upsert=upsert,
+            update=update,
+            upsert=False,  # Only update, not insert
+        )
+        return result.modified_count
+
+    def set(
+        self, document_id, *, data: dict, write_only_if_insert: bool = False
+    ) -> int:
+        update = {"$set": data}
+        if write_only_if_insert:
+            update = {"$setOnInsert": data}
+        result = self._collection.update_one(
+            {"_id": document_id},
+            update=update,
+            upsert=True,  # updated or insert
         )
         return result.modified_count
 
