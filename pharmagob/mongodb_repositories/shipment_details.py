@@ -25,7 +25,7 @@ class ShipmentDetailRepository(BaseMongoDbRepository):
         Returns:
             Tuple[int, Iterator[dict]]: The retrieved resources if found
         """
-        filter = {"shipment_id": shipment_id}
+        filter = {"shipment.id": shipment_id}
         documents_count: int = self._collection.count_documents(filter)
         documents_cursor = self._collection.find(
             filter,
