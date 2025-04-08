@@ -4,6 +4,8 @@ from infra.mongodb import MongoDbManager
 
 
 class BaseMongoDbRepository:
+    _DEFAULT_QUERY_LIMIT = 500
+
     def __init__(self, db_manager: MongoDbManager, collection_name: str):
         self._collection = db_manager.get_collection(collection_name)
 
