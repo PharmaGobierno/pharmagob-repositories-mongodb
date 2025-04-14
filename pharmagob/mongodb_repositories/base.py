@@ -23,10 +23,6 @@ class Query:
         self._filter.update(kwargs)
         return self
 
-    def clear_filter(self) -> None:
-        """Clear current filter (useful after get_one/get_by_id)."""
-        self._filter = {}
-
     def _get_filter(self) -> Dict[str, Any]:
         if self._verbose:
             logging.debug(f"[Query] Using filter: {self._filter}")
@@ -34,27 +30,6 @@ class Query:
 
     def count(self) -> int:
         return self._collection.count_documents(self._get_filter())
-
-    def get_all(
-        self,
-        *,
-        sort: Optional[List[Tuple[str, int]]] = None,
-        limit: int = _DEFAULT_QUERY_LIMIT,
-        projection: Optional[Union[List[str], Dict[str, int]]] = None,
-    ) -> Cursor:
-        return self._collection.find(
-            self._get_filter(), projection=projection, sort=sort, limit=limit
-        )
-
-    def get_one_or_none(
-        self,
-        *,
-        sort: Optional[List[Tuple[str, int]]] = None,
-        projection: Optional[Union[List[str], Dict[str, int]]] = None,
-    ) -> Optional[Dict[str, Any]]:
-        return self._collection.find_one(
-            self._get_filter(), projection=projection, sort=sort
-        )
 
     def paginate(
         self,
