@@ -14,14 +14,13 @@ class ShipmentRepository(BaseMongoDbRepository):
         page: int = 1,
         limit: int = BaseMongoDbRepository.DEFAULT_QUERY_LIMIT,
     ) -> Tuple[int, dict]:
-        SEARCH_INDEX = "order-number-partial-match-created-at-updated-at"
-        FIELD = "order_number"
+        SEARCH_INDEX = "autocomplete_order_number_range_created_at"
         _sort = {"created_at": BaseMongoDbRepository.DESCENDING_ORDER}
         search: dict = {
             "index": SEARCH_INDEX,
             "compound": {
                 "must": [
-                    {"autocomplete": {"query": order_number, "path": FIELD}},
+                    {"autocomplete": {"query": order_number, "path": "order_number"}},
                     {
                         "range": {
                             "path": "created_at",
