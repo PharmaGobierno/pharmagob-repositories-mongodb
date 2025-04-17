@@ -10,9 +10,9 @@ class ShipmentRepository(BaseMongoDbRepository):
         *,
         created_at_gt: int,
         created_at_lt: int,
-        review_status: Optional[str],
         page: int = 1,
         limit: int = BaseMongoDbRepository.DEFAULT_QUERY_LIMIT,
+        review_status: Optional[str] = None
     ) -> Tuple[int, List[dict]]:
         SEARCH_INDEX = "autocomplete_order_number_range_created_at"
         search: dict = {
