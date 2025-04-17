@@ -1,14 +1,9 @@
 from typing import Iterator, List, Optional, Tuple, Union
 
-from infra.mongodb import MongoDbManager
-
 from .base import BaseMongoDbRepository
 
 
 class ShipmentDetailRepository(BaseMongoDbRepository):
-    def __init__(self, db_manager: MongoDbManager, collection_name: str):
-        super().__init__(db_manager, collection_name)
-
     def get_by_shipment_id(
         self,
         shipment_id,
@@ -31,6 +26,6 @@ class ShipmentDetailRepository(BaseMongoDbRepository):
             filter,
             sort=sort,
             projection=projection,
-            limit=(limit or self._DEFAULT_QUERY_LIMIT),
+            limit=(limit or self.DEFAULT_QUERY_LIMIT),
         )
         return documents_count, map(lambda item: item, documents_cursor)
