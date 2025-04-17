@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from .base import BaseMongoDbRepository
 
@@ -8,14 +8,13 @@ class ShipmentRepository(BaseMongoDbRepository):
         self,
         order_number: str,
         *,
-        review_status: str,
         created_at_gt: int,
         created_at_lt: int,
+        review_status: Optional[str],
         page: int = 1,
         limit: int = BaseMongoDbRepository.DEFAULT_QUERY_LIMIT,
-    ) -> Tuple[int, dict]:
+    ) -> Tuple[int, List[dict]]:
         SEARCH_INDEX = "autocomplete_order_number_range_created_at"
-        _sort = {"created_at": BaseMongoDbRepository.DESCENDING_ORDER}
         search: dict = {
             "index": SEARCH_INDEX,
             "compound": {
@@ -28,13 +27,14 @@ class ShipmentRepository(BaseMongoDbRepository):
                             "lt": created_at_lt,
                         }
                     },
-                ],
-                "filter": [
-                    {"equals": {"path": "review_status", "value": review_status}}
-                ],
+                ]
             },
-            "sort": _sort,
+            "sort": {"created_at": BaseMongoDbRepository.DESCENDING_ORDER},
         }
+        if review_status:
+            search["compound"]["filter"] = {
+                "equals": {"path": "review_status", "value": review_status}
+            }
         pipeline: List[dict] = [
             {"$search": search},
             {
