@@ -4,7 +4,7 @@ from .base import BaseMongoDbRepository
 
 
 class ShipmentRepository(BaseMongoDbRepository):
-    def sarch_by_order_number(
+    def search_by_order_number(
         self,
         order_number: str,
         *,
@@ -12,6 +12,7 @@ class ShipmentRepository(BaseMongoDbRepository):
         created_at_lt: int,
         page: int = 1,
         limit: int = BaseMongoDbRepository.DEFAULT_QUERY_LIMIT,
+        umu_id: Optional[str] = None,
         review_status: Optional[str] = None
     ) -> Tuple[int, List[dict]]:
         SEARCH_INDEX = "autocomplete_order_number_range_created_at"
@@ -31,10 +32,15 @@ class ShipmentRepository(BaseMongoDbRepository):
             },
             "sort": {"created_at": BaseMongoDbRepository.DESCENDING_ORDER},
         }
+        search["compound"]["filter"] = []
+        if umu_id:
+            search["compound"]["filter"].append(
+                {"equals": {"path": "umu_id", "value": umu_id}}
+            )
         if review_status:
-            search["compound"]["filter"] = {
-                "equals": {"path": "review_status", "value": review_status}
-            }
+            search["compound"]["filter"].append(
+                {"equals": {"path": "review_status", "value": review_status}}
+            )
         pipeline: List[dict] = [
             {"$search": search},
             {

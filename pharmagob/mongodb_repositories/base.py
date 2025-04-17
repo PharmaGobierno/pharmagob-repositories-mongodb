@@ -46,6 +46,7 @@ class BaseMongoDbRepository:
         self,
         document_id,
         *,
+        umu_id: Optional[str] = None,
         sort: Optional[List[Tuple[str, int]]] = None,
         projection: Optional[Union[list, dict]] = None,
     ) -> Optional[dict]:
@@ -58,6 +59,8 @@ class BaseMongoDbRepository:
             Optional[dict]: An dict representation of the found document
         """
         filter = {"_id": document_id}
+        if umu_id:
+            filter.update({"umu_id": umu_id})
         document_data = self._collection.find_one(
             filter, sort=sort, projection=projection
         )
@@ -68,6 +71,7 @@ class BaseMongoDbRepository:
         page: int = 1,
         limit: int = DEFAULT_QUERY_LIMIT,
         *,
+        umu_id: Optional[str] = None,
         and_conditions: Optional[List[tuple]] = None,
         sort: Optional[List[Tuple[str, int]]] = None,
         projection: Optional[List[str]] = None,
@@ -75,6 +79,8 @@ class BaseMongoDbRepository:
         parsed_filter: dict = {}
         if and_conditions:
             parsed_filter = convert_conditions_to_mongo(and_conditions)
+        if umu_id:
+            parsed_filter.update({"umu_id": umu_id})
         skip = (page - 1) * limit
         total_count = self._collection.count_documents(parsed_filter)
         results = self._collection.find(

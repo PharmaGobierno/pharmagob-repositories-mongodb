@@ -8,19 +8,14 @@ class ShipmentDetailRepository(BaseMongoDbRepository):
         self,
         shipment_id,
         *,
+        umu_id: Optional[str] = None,
         sort: Optional[List[Tuple[str, int]]] = None,
         projection: Optional[Union[list, dict]] = None,
         limit: Optional[int] = None
     ) -> Tuple[int, Iterator[dict]]:
-        """Retrieve a document based on its unique identifier.
-
-        Parameters:
-            shipment_id: The shipment_id foreign key of the documents.
-
-        Returns:
-            Tuple[int, Iterator[dict]]: The retrieved resources if found
-        """
         filter = {"shipment.id": shipment_id}
+        if umu_id:
+            filter.update({"umu_id": umu_id})
         documents_count: int = self._collection.count_documents(filter)
         documents_cursor = self._collection.find(
             filter,
