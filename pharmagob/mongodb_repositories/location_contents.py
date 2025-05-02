@@ -11,27 +11,27 @@ class LocationContentRepository(BaseMongoDbRepository):
         page: int = 1,
         limit: int = BaseMongoDbRepository.DEFAULT_QUERY_LIMIT,
         umu_id: Optional[str] = None,
-        created_at_gt: Optional[int] = None,
-        created_at_lt: Optional[int] = None,
+        expiration_date_gt: Optional[int] = None,
+        expiration_date_lt: Optional[int] = None,
         quantity_gt: Optional[int] = None,
         quantity_lt: Optional[int] = None,
         lot: Optional[str] = None
     ) -> Tuple[int, List[dict]]:
-        SEARCH_INDEX = "autocomplete_item_id_range_created_at_range_quantity"
+        SEARCH_INDEX = "autocomplete_item_id_range_expiration_date_range_quantity"
         search: dict = {
             "index": SEARCH_INDEX,
             "compound": {
                 "must": [{"autocomplete": {"query": item_id, "path": "item.id"}}]
             },
-            "sort": {"created_at": BaseMongoDbRepository.DESCENDING_ORDER},
+            "sort": {"expiration_date": BaseMongoDbRepository.DESCENDING_ORDER},
         }
-        if created_at_gt is not None or created_at_lt is not None:
-            created_at_range: Dict[str, Any] = {"path": "created_at"}
-            if created_at_gt is not None:
-                created_at_range["gt"] = created_at_gt
-            if created_at_lt is not None:
-                created_at_range["lt"] = created_at_lt
-            search["compound"]["must"].append({"range": created_at_range})
+        if expiration_date_gt is not None or expiration_date_lt is not None:
+            expiration_date_range: Dict[str, Any] = {"path": "expiration_date"}
+            if expiration_date_gt is not None:
+                expiration_date_range["gt"] = expiration_date_gt
+            if expiration_date_lt is not None:
+                expiration_date_range["lt"] = expiration_date_lt
+            search["compound"]["must"].append({"range": expiration_date_range})
         if quantity_gt is not None or quantity_lt is not None:
             quantity_range: Dict[str, Any] = {"path": "quantity"}
             if quantity_gt is not None:
