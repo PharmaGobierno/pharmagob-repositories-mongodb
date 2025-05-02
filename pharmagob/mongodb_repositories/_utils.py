@@ -9,6 +9,8 @@ def convert_conditions_to_mongo(and_conditions: List[Tuple[str, str, Any]]) -> d
         ">": "$gt",
         "<": "$lt",
         "=": "$eq",
+        "in": "$in",
+        "not in": "$nin",
     }
 
     for field, op, value in and_conditions:
