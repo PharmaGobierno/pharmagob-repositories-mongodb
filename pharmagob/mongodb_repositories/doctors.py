@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .base import BaseMongoDbRepository
 
@@ -8,10 +8,10 @@ class DoctorsRepository(BaseMongoDbRepository):
         self,
         employee_number: str,
         *,
-        created_at_gt: int,
-        created_at_lt: int,
         page: int = 1,
         limit: int = BaseMongoDbRepository.DEFAULT_QUERY_LIMIT,
+        created_at_gt: Optional[int] = None,
+        created_at_lt: Optional[int] = None,
         umu_id: Optional[str] = None,
     ) -> Tuple[int, List[dict]]:
         SEARCH_INDEX = "autocomplete_employee_or_licence_range_created_at"
@@ -24,18 +24,18 @@ class DoctorsRepository(BaseMongoDbRepository):
                             "query": employee_number,
                             "path": "employee_number",
                         }
-                    },
-                    {
-                        "range": {
-                            "path": "created_at",
-                            "gt": created_at_gt,
-                            "lt": created_at_lt,
-                        }
-                    },
+                    }
                 ]
             },
             "sort": {"created_at": BaseMongoDbRepository.DESCENDING_ORDER},
         }
+        if created_at_gt is not None or created_at_lt is not None:
+            created_at_range: Dict[str, Any] = {"path": "created_at"}
+            if created_at_gt is not None:
+                created_at_range["gt"] = created_at_gt
+            if created_at_lt is not None:
+                created_at_range["lt"] = created_at_lt
+            search["compound"]["must"].append({"range": created_at_range})
         search["compound"]["filter"] = []
         if umu_id:
             search["compound"]["filter"].append(
