@@ -38,7 +38,7 @@ class ShipmentRepository(BaseMongoDbRepository):
             )
         if review_status:
             search["compound"]["filter"].append(
-                {"equals": {"path": "review_status", "in": review_status}}
+                {"in": {"path": "review_status", "value": review_status}}
             )
         pipeline: List[dict] = [
             {"$search": search},
