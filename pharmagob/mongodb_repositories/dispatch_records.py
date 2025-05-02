@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .base import BaseMongoDbRepository
 
@@ -8,11 +8,11 @@ class DispatchRecordRepository(BaseMongoDbRepository):
         self,
         reference_id: str,
         *,
-        created_at_gt: int,
-        created_at_lt: int,
         page: int = 1,
         limit: int = BaseMongoDbRepository.DEFAULT_QUERY_LIMIT,
         umu_id: Optional[str] = None,
+        created_at_gt: Optional[int] = None,
+        created_at_lt: Optional[int] = None,
         dispatch_gt: Optional[int] = None,
         dispatch_lt: Optional[int] = None,
         service: Optional[str] = None
@@ -22,23 +22,25 @@ class DispatchRecordRepository(BaseMongoDbRepository):
             "index": SEARCH_INDEX,
             "compound": {
                 "must": [
-                    {"autocomplete": {"query": reference_id, "path": "reference_id"}},
-                    {
-                        "range": {
-                            "path": "created_at",
-                            "gt": created_at_gt,
-                            "lt": created_at_lt,
-                        },
-                        "range": {
-                            "path": "dispatch_at",
-                            "gt": dispatch_gt,
-                            "lt": dispatch_lt,
-                        },
-                    },
+                    {"autocomplete": {"query": reference_id, "path": "reference_id"}}
                 ]
             },
             "sort": {"created_at": BaseMongoDbRepository.DESCENDING_ORDER},
         }
+        if created_at_gt is not None or created_at_lt is not None:
+            created_at_range: Dict[str, Any] = {"path": "created_at"}
+            if created_at_gt is not None:
+                created_at_range["gt"] = created_at_gt
+            if created_at_lt is not None:
+                created_at_range["lt"] = created_at_lt
+            search["compound"]["must"].append({"range": created_at_range})
+        if dispatch_gt is not None or dispatch_lt is not None:
+            dispatch_range: Dict[str, Any] = {"path": "dispatch"}
+            if dispatch_gt is not None:
+                dispatch_range["gt"] = dispatch_gt
+            if dispatch_lt is not None:
+                dispatch_range["lt"] = dispatch_lt
+            search["compound"]["must"].append({"range": dispatch_range})
         search["compound"]["filter"] = []
         if umu_id:
             search["compound"]["filter"].append(

@@ -8,11 +8,11 @@ class LocationContentRepository(BaseMongoDbRepository):
         self,
         item_id: str,
         *,
-        created_at_gt: int,
-        created_at_lt: int,
         page: int = 1,
         limit: int = BaseMongoDbRepository.DEFAULT_QUERY_LIMIT,
         umu_id: Optional[str] = None,
+        created_at_gt: Optional[int] = None,
+        created_at_lt: Optional[int] = None,
         quantity_gt: Optional[int] = None,
         quantity_lt: Optional[int] = None,
         lot: Optional[str] = None
@@ -21,19 +21,17 @@ class LocationContentRepository(BaseMongoDbRepository):
         search: dict = {
             "index": SEARCH_INDEX,
             "compound": {
-                "must": [
-                    {"autocomplete": {"query": item_id, "path": "item.id"}},
-                    {
-                        "range": {
-                            "path": "created_at",
-                            "gt": created_at_gt,
-                            "lt": created_at_lt,
-                        }
-                    },
-                ]
+                "must": [{"autocomplete": {"query": item_id, "path": "item.id"}}]
             },
             "sort": {"created_at": BaseMongoDbRepository.DESCENDING_ORDER},
         }
+        if created_at_gt is not None or created_at_lt is not None:
+            created_at_range: Dict[str, Any] = {"path": "created_at"}
+            if created_at_gt is not None:
+                created_at_range["gt"] = created_at_gt
+            if created_at_lt is not None:
+                created_at_range["lt"] = created_at_lt
+            search["compound"]["must"].append({"range": created_at_range})
         if quantity_gt is not None or quantity_lt is not None:
             quantity_range: Dict[str, Any] = {"path": "quantity"}
             if quantity_gt is not None:
