@@ -1,4 +1,4 @@
-from typing import Iterator, List, Optional, Tuple, Union
+from typing import Any, Iterator, List, Optional, Tuple, Union
 
 from infra.mongodb import MongoDbManager
 from pymongo import ASCENDING, DESCENDING
@@ -29,7 +29,9 @@ class BaseMongoDbRepository:
         )
         return result.modified_count  # number of documents that were modified
 
-    def update_many(self, and_conditions: Optional[List[tuple]], *, data: dict) -> int:
+    def update_many(
+        self, and_conditions: Optional[List[Tuple[str, str, Any]]], *, data: dict
+    ) -> int:
         parsed_filter: dict = {}
         if and_conditions:
             parsed_filter = convert_conditions_to_mongo(and_conditions)
@@ -84,7 +86,7 @@ class BaseMongoDbRepository:
         limit: int = DEFAULT_QUERY_LIMIT,
         *,
         umu_id: Optional[str] = None,
-        and_conditions: Optional[List[tuple]] = None,
+        and_conditions: Optional[List[Tuple[str, str, Any]]] = None,
         sort: Optional[List[Tuple[str, int]]] = None,
         projection: Optional[List[str]] = None,
     ) -> Tuple[int, Iterator[dict]]:
