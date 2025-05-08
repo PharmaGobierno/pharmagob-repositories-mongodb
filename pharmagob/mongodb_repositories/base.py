@@ -29,6 +29,18 @@ class BaseMongoDbRepository:
         )
         return result.modified_count  # number of documents that were modified
 
+    def update_many(self, and_conditions: Optional[List[tuple]], *, data: dict) -> int:
+        parsed_filter: dict = {}
+        if and_conditions:
+            parsed_filter = convert_conditions_to_mongo(and_conditions)
+        update = {"$set": data}
+        result = self._collection.update_many(
+            parsed_filter,
+            update=update,
+            upsert=False,  # Only update, not insert
+        )
+        return result.modified_count  # number of documents that were modified
+
     def set(
         self, document_id, *, data: dict, write_only_if_insert: bool = False
     ) -> int:
