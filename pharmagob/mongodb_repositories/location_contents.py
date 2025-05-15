@@ -6,7 +6,7 @@ from .base import BaseMongoDbRepository
 class LocationContentRepository(BaseMongoDbRepository):
     def search_by_item(
         self,
-        item_id: str,
+        search_str: str,
         *,
         page: int = 1,
         limit: int = BaseMongoDbRepository.DEFAULT_QUERY_LIMIT,
@@ -21,9 +21,9 @@ class LocationContentRepository(BaseMongoDbRepository):
         search: dict = {
             "index": SEARCH_INDEX,
             "compound": {
-                "must": [{"autocomplete": {"query": item_id, "path": "item.id"}}]
+                "must": [{"autocomplete": {"query": search_str, "path": "item.id"}}]
             },
-            "sort": {"expiration_date": BaseMongoDbRepository.DESCENDING_ORDER},
+            "sort": {"expiration_date": BaseMongoDbRepository.ASCENDING_ORDER},
         }
         if expiration_date_gt is not None or expiration_date_lt is not None:
             expiration_date_range: Dict[str, Any] = {"path": "expiration_date"}
