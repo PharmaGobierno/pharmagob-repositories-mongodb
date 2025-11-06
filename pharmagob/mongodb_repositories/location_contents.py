@@ -10,6 +10,7 @@ class LocationContentRepository(BaseMongoDbRepository):
         *,
         page: int = 1,
         limit: int = BaseMongoDbRepository.DEFAULT_QUERY_LIMIT,
+        sort: Optional[List[Tuple[str, int]]] = None,
         umu_id: Optional[str] = None,
         expiration_date_gt: Optional[int] = None,
         expiration_date_lt: Optional[int] = None,
@@ -18,12 +19,15 @@ class LocationContentRepository(BaseMongoDbRepository):
         lot: Optional[str] = None
     ) -> Tuple[int, List[dict]]:
         SEARCH_INDEX = "autocomplete_item_id_range_expiration_date_range_quantity"
+        default_sort = sort
+        if default_sort is None:
+            default_sort = [("expiration_date", BaseMongoDbRepository.ASCENDING_ORDER)]
         search: dict = {
             "index": SEARCH_INDEX,
             "compound": {
                 "must": [{"autocomplete": {"query": search_str, "path": "item.id"}}]
             },
-            "sort": {"expiration_date": BaseMongoDbRepository.ASCENDING_ORDER},
+            "sort": default_sort,
         }
         if expiration_date_gt is not None or expiration_date_lt is not None:
             expiration_date_range: Dict[str, Any] = {"path": "expiration_date"}
