@@ -14,15 +14,18 @@ class WarehouseRepository(BaseMongoDbRepository):
         disable: Optional[bool] = None,
         created_at_gt: Optional[int] = None,
         created_at_lt: Optional[int] = None,
-        sort_order: int = BaseMongoDbRepository.DESCENDING_ORDER,
+        sort: Optional[Dict[str, int]] = None,
     ) -> Tuple[int, List[dict]]:
         SEARCH_INDEX = "autocomplete_umu_id_range_created_at"
+        default_sort = sort
+        if default_sort is None:
+            default_sort = {"created_at": BaseMongoDbRepository.DESCENDING_ORDER}
         search: dict = {
             "index": SEARCH_INDEX,
             "compound": {
                 "must": [{"autocomplete": {"query": search_str, "path": "umu_id"}}]
             },
-            "sort": {"created_at": sort_order},
+            "sort": default_sort,
         }
         if created_at_gt is not None or created_at_lt is not None:
             created_at_range: Dict[str, Any] = {"path": "created_at"}
