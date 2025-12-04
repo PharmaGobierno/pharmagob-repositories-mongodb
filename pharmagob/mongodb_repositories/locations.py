@@ -8,6 +8,7 @@ class LocationRepository(BaseMongoDbRepository):
         self,
         umu_id,
         *,
+        label_code: Optional[str] = None,
         sort: Optional[List[Tuple[str, int]]] = None,
         projection: Optional[Union[list, dict]] = None,
         limit: Optional[int] = None
@@ -21,6 +22,8 @@ class LocationRepository(BaseMongoDbRepository):
             Tuple[int, Iterator[dict]]: The retrieved resources if found
         """
         filter = {"umu_id": umu_id}
+        if label_code is not None:
+            filter["label_code"] = label_code
         documents_count: int = self._collection.count_documents(filter)
         documents_cursor = self._collection.find(
             filter,
