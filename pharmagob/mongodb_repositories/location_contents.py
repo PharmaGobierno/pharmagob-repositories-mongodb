@@ -16,7 +16,9 @@ class LocationContentRepository(BaseMongoDbRepository):
         expiration_date_lt: Optional[int] = None,
         quantity_gt: Optional[int] = None,
         quantity_lt: Optional[int] = None,
-        lot: Optional[str] = None
+        lot: Optional[str] = None,
+        location_id: Optional[str] = None,
+        location_label_code: Optional[str] = None
     ) -> Tuple[int, List[dict]]:
         SEARCH_INDEX = "autocomplete_item_id_range_expiration_date_range_quantity"
         default_sort = sort
@@ -52,6 +54,19 @@ class LocationContentRepository(BaseMongoDbRepository):
             search["compound"]["filter"].append(
                 {"equals": {"path": "lot", "value": lot}}
             )
+        if location_id:
+            search["compound"]["filter"].append(
+                {"equals": {"path": "location.id", "value": location_id}}
+            )
+        if location_label_code:
+            search["compound"]["filter"].append(
+                {
+                    "equals": {
+                        "path": "location.label_code",
+                        "value": location_label_code,
+                    }
+                }
+            )
         pipeline: List[dict] = [
             {"$search": search},
             {
@@ -79,7 +94,9 @@ class LocationContentRepository(BaseMongoDbRepository):
         expiration_date_lt: Optional[int] = None,
         quantity_gt: Optional[int] = None,
         quantity_lt: Optional[int] = None,
-        lot: Optional[str] = None
+        lot: Optional[str] = None,
+        location_id: Optional[str] = None,
+        location_label_code: Optional[str] = None
     ) -> Tuple[int, List[dict]]:
         SEARCH_INDEX = "autocomplete_item_id_range_expiration_date_range_quantity"
         default_sort = sort
@@ -110,6 +127,19 @@ class LocationContentRepository(BaseMongoDbRepository):
         if lot:
             search["compound"]["filter"].append(
                 {"equals": {"path": "lot", "value": lot}}
+            )
+        if location_id:
+            search["compound"]["filter"].append(
+                {"equals": {"path": "location.id", "value": location_id}}
+            )
+        if location_label_code:
+            search["compound"]["filter"].append(
+                {
+                    "equals": {
+                        "path": "location.label_code",
+                        "value": location_label_code,
+                    }
+                }
             )
         if umu_id_in:
             search["compound"]["filter"].append(
