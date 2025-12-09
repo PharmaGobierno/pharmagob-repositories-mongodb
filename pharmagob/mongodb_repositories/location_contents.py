@@ -20,6 +20,8 @@ class LocationContentRepository(BaseMongoDbRepository):
         location_id: Optional[str] = None,
         location_label_code: Optional[str] = None
     ) -> Tuple[int, List[dict]]:
+        page = page or 1
+        limit = limit or BaseMongoDbRepository.DEFAULT_QUERY_LIMIT
         SEARCH_INDEX = "autocomplete_item_id_range_expiration_date_range_quantity"
         default_sort = sort
         if default_sort is None:
