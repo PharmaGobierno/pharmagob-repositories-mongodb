@@ -164,3 +164,40 @@ class LocationContentRepository(BaseMongoDbRepository):
         aggregation_cursor = self._collection.aggregate(pipeline=pipeline)
         data: dict = aggregation_cursor.next()
         return data.get("count", 0), data.get("results", [])
+
+    def trigger_report_aggregation(
+        self, 
+        report_id: str, 
+        filters: Dict[str, Any]
+    ) -> str:
+        temp_collection_name = f"report_{report_id}"
+        
+        pipeline = [
+            {"$match": filters},
+            {"$group": {
+                "_id": {
+                    "umu_id": "$umu_id",
+                    "item_id": "$item.id"
+                },
+                "total_cantidad": {"$sum": "$quantity"},
+                "descripcion": {"$first": "$item.short_description"}
+            }},
+            {"$project": {
+                "_id": 0,
+                "UMU": "$_id.umu_id",
+                "Item ID": "$_id.item_id",
+                "Descripción": "$descripcion",
+                "Cantidad total": "$total_cantidad",
+                "createdAt": "$$NOW"
+            }},
+            {"$out": temp_collection_name}
+        ]
+        
+        self._collection.aggregate(pipeline)
+        
+        self._db[temp_collection_name].create_index(
+            "createdAt", 
+            expireAfterSeconds=86400
+        )
+        
+        return temp_collection_name
