@@ -53,3 +53,10 @@ class ShipmentRepository(BaseMongoDbRepository):
         aggregation_cursor = self._collection.aggregate(pipeline=pipeline)
         data: dict = aggregation_cursor.next()
         return data.get("count", 0), data.get("results", [])
+
+    def get_review_status(self, shipment_id: str) -> Optional[str]:
+        doc = self.collection.find_one(
+            {"_id": shipment_id}, 
+            {"review_status": 1}
+        )
+        return doc.get("review_status") if doc else None

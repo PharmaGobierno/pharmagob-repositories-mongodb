@@ -179,15 +179,15 @@ class LocationContentRepository(BaseMongoDbRepository):
                     "umu_id": "$umu_id",
                     "item_id": "$item.id"
                 },
-                "total_cantidad": {"$sum": "$quantity"},
-                "descripcion": {"$first": "$item.short_description"}
+                "total_quantity": {"$sum": "$quantity"},
+                "description": {"$first": "$item.short_description"}
             }},
             {"$project": {
                 "_id": 0,
-                "UMU": "$_id.umu_id",
-                "Item ID": "$_id.item_id",
-                "Descripción": "$descripcion",
-                "Cantidad total": "$total_cantidad",
+                "umu_id": "$_id.umu_id",
+                "item_id": "$_id.item_id",
+                "description": "$description",
+                "total_quantity": "$total_quantity",
                 "createdAt": "$$NOW"
             }},
             {"$out": temp_collection_name}
@@ -201,3 +201,13 @@ class LocationContentRepository(BaseMongoDbRepository):
         )
         
         return temp_collection_name
+    
+    def find_by_logic_triad(
+        self, item_id: str, lot: str, location_id: str
+    ) -> Optional[dict]:
+        query = {
+            "item.id": item_id,
+            "lot": lot,
+            "location.id": location_id
+        }
+        return self.collection.find_one(query)
