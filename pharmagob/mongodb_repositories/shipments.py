@@ -55,7 +55,7 @@ class ShipmentRepository(BaseMongoDbRepository):
         return data.get("count", 0), data.get("results", [])
 
     def get_review_status(self, shipment_id: str) -> Optional[str]:
-        doc = self.collection.find_one(
+        doc = self._collection.find_one(
             {"_id": shipment_id}, 
             {"review_status": 1}
         )
