@@ -210,4 +210,4 @@ class LocationContentRepository(BaseMongoDbRepository):
             "lot": lot,
             "location.id": location_id
         }
-        return self.collection.find_one(query)
+        return self._collection.find_one(query)
