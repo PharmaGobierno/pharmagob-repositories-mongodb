@@ -18,7 +18,8 @@ class LocationContentRepository(BaseMongoDbRepository):
         quantity_lt: Optional[int] = None,
         lot: Optional[str] = None,
         location_id: Optional[str] = None,
-        location_label_code: Optional[str] = None
+        location_label_code: Optional[str] = None,
+        location_label_code_not_in: Optional[List[str]] = None,
     ) -> Tuple[int, List[dict]]:
         page = page or 1
         limit = limit or BaseMongoDbRepository.DEFAULT_QUERY_LIMIT
@@ -69,6 +70,17 @@ class LocationContentRepository(BaseMongoDbRepository):
                     }
                 }
             )
+        if location_label_code_not_in:
+            search["compound"].setdefault("mustNot", []).extend(
+                [
+                    {
+                        "in": {
+                            "path": "location.label_code",
+                            "value": location_label_code_not_in,
+                        }
+                    }
+                ]
+            )
         pipeline: List[dict] = [
             {"$search": search},
             {
@@ -98,7 +110,7 @@ class LocationContentRepository(BaseMongoDbRepository):
         quantity_lt: Optional[int] = None,
         lot: Optional[str] = None,
         location_id: Optional[str] = None,
-        location_label_code: Optional[str] = None
+        location_label_code: Optional[str] = None,
     ) -> Tuple[int, List[dict]]:
         SEARCH_INDEX = "autocomplete_item_id_range_expiration_date_range_quantity"
         default_sort = sort
@@ -166,48 +178,42 @@ class LocationContentRepository(BaseMongoDbRepository):
         return data.get("count", 0), data.get("results", [])
 
     def trigger_report_aggregation(
-        self, 
-        report_id: str, 
-        filters: Dict[str, Any]
+        self, report_id: str, filters: Dict[str, Any]
     ) -> str:
         temp_collection_name = f"report_{report_id}"
-        
+
         pipeline = [
             {"$match": filters},
-            {"$group": {
-                "_id": {
-                    "umu_id": "$umu_id",
-                    "item_id": "$item.id"
-                },
-                "total_quantity": {"$sum": "$quantity"},
-                "description": {"$first": "$item.short_description"}
-            }},
-            {"$project": {
-                "_id": 0,
-                "umu_id": "$_id.umu_id",
-                "item_id": "$_id.item_id",
-                "description": "$description",
-                "total_quantity": "$total_quantity",
-                "createdAt": "$$NOW"
-            }},
-            {"$out": temp_collection_name}
+            {
+                "$group": {
+                    "_id": {"umu_id": "$umu_id", "item_id": "$item.id"},
+                    "total_quantity": {"$sum": "$quantity"},
+                    "description": {"$first": "$item.short_description"},
+                }
+            },
+            {
+                "$project": {
+                    "_id": 0,
+                    "umu_id": "$_id.umu_id",
+                    "item_id": "$_id.item_id",
+                    "description": "$description",
+                    "total_quantity": "$total_quantity",
+                    "createdAt": "$$NOW",
+                }
+            },
+            {"$out": temp_collection_name},
         ]
-        
+
         self._collection.aggregate(pipeline)
-        
+
         self._db[temp_collection_name].create_index(
-            "createdAt", 
-            expireAfterSeconds=86400
+            "createdAt", expireAfterSeconds=86400
         )
-        
+
         return temp_collection_name
-    
+
     def find_by_logic_triad(
         self, item_id: str, lot: str, location_id: str
     ) -> Optional[dict]:
-        query = {
-            "item.id": item_id,
-            "lot": lot,
-            "location.id": location_id
-        }
+        query = {"item.id": item_id, "lot": lot, "location.id": location_id}
         return self._collection.find_one(query)
