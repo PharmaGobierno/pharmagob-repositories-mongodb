@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union, Iterator
 
 from .base import BaseMongoDbRepository
 
@@ -67,12 +67,25 @@ class DispatchRecordRepository(BaseMongoDbRepository):
 
     def find_by_reference(
         self,
-        umu_id: str,
         reference_id: str,
-        ) -> Optional[dict]:
-            return self._collection.find_one(
-                {
-                    "umu_id": umu_id,
-                    "reference_id": reference_id,
-                }
-            )
+        *,
+        umu_id: str,
+        sort: Optional[List[Tuple[str, int]]] = None,
+        projection: Optional[Union[list, dict]] = None,
+        limit: Optional[int] = None,
+    ) -> Tuple[int, Iterator[dict]]:
+        filter = {
+            "reference_id": reference_id,
+            "umu_id": umu_id,
+        }
+
+        documents_count = self._collection.count_documents(filter)
+
+        documents_cursor = self._collection.find(
+            filter,
+            sort=sort,
+            projection=projection,
+            limit=(limit or self.DEFAULT_QUERY_LIMIT),
+        )
+
+        return documents_count, map(lambda item: item, documents_cursor)
