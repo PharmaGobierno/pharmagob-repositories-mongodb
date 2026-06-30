@@ -63,3 +63,16 @@ class DispatchRecordRepository(BaseMongoDbRepository):
         aggregation_cursor = self._collection.aggregate(pipeline=pipeline)
         data: dict = aggregation_cursor.next()
         return data.get("count", 0), data.get("results", [])
+    
+
+    def find_by_reference(
+        self,
+        umu_id: str,
+        reference_id: str,
+        ) -> Optional[dict]:
+            return self._collection.find_one(
+                {
+                    "umu_id": umu_id,
+                    "reference_id": reference_id,
+                }
+            )
