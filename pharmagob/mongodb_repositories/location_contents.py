@@ -217,3 +217,19 @@ class LocationContentRepository(BaseMongoDbRepository):
     ) -> Optional[dict]:
         query = {"item.id": item_id, "lot": lot, "location.id": location_id}
         return self._collection.find_one(query)
+
+
+    def get_by_ids(
+        self,
+        entity_ids: List[str],
+        umu_id: str,
+    ) -> List[dict]:
+
+        return list(
+            self._collection.find(
+                {
+                    "_id": {"$in": entity_ids},
+                    "umu_id": umu_id,
+                }
+            )
+        )
