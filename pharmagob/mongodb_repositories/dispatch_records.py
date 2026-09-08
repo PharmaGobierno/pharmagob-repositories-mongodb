@@ -89,3 +89,20 @@ class DispatchRecordRepository(BaseMongoDbRepository):
         )
 
         return documents_count, map(lambda item: item, documents_cursor)
+
+    def exists_by_reference(
+        self,
+        reference_id: str,
+        *,
+        umu_id: str,
+        exclude_statuses: Optional[List[str]] = None,
+    ) -> bool:
+        filter: dict = {
+            "reference_id": reference_id,
+            "umu_id": umu_id,
+        }
+        if exclude_statuses:
+            filter["status"] = {"$nin": exclude_statuses}
+
+        document = self._collection.find_one(filter, projection={"_id": 1})
+        return document is not None
