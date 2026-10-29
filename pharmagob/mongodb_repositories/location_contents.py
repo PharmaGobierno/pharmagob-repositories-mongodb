@@ -233,3 +233,28 @@ class LocationContentRepository(BaseMongoDbRepository):
                 }
             )
         )
+
+    def get_batch_after(
+        self,
+        umu_id: str,
+        after_id: Optional[str],
+        limit: int,
+        *,
+        label_code: Optional[str] = None,
+        quantity_gt: Optional[int] = None,
+        item_ids: Optional[List[str]] = None,
+    ) -> List[dict]:
+        """Keyset batch ordered by `_id` (no skip), for sweeping a UMU."""
+        filter: Dict[str, Any] = {"umu_id": umu_id}
+        if after_id is not None:
+            filter["_id"] = {"$gt": after_id}
+        if label_code is not None:
+            filter["location.label_code"] = label_code
+        if quantity_gt is not None:
+            filter["quantity"] = {"$gt": quantity_gt}
+        if item_ids is not None:
+            filter["item.id"] = {"$in": item_ids}
+        cursor = self._collection.find(
+            filter, sort=[("_id", BaseMongoDbRepository.ASCENDING_ORDER)], limit=limit
+        )
+        return list(cursor)
