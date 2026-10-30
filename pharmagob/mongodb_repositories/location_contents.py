@@ -233,3 +233,39 @@ class LocationContentRepository(BaseMongoDbRepository):
                 }
             )
         )
+
+    def get_batch_after(
+        self,
+        umu_id: str,
+        *,
+        after_id: Optional[str] = None,
+        limit: int = 1000,
+        location_label_code: Optional[str] = None,
+        location_label_code_not_in: Optional[List[str]] = None,
+        quantity_gt: Optional[int] = None,
+        item_ids: Optional[List[str]] = None,
+    ) -> List[dict]:
+        """Keyset batch ordered by `_id` (no skip), for sweeping a UMU.
+
+        The general scope is asked with `location_label_code_not_in=["FARB"]`,
+        never with an equality: location contents without `label_code` are
+        general too (H-17).
+        """
+        filter: Dict[str, Any] = {"umu_id": umu_id}
+        if after_id is not None:
+            filter["_id"] = {"$gt": after_id}
+        if location_label_code_not_in:
+            label_code_filter: Dict[str, Any] = {"$nin": location_label_code_not_in}
+            if location_label_code is not None:
+                label_code_filter["$eq"] = location_label_code
+            filter["location.label_code"] = label_code_filter
+        elif location_label_code is not None:
+            filter["location.label_code"] = location_label_code
+        if quantity_gt is not None:
+            filter["quantity"] = {"$gt": quantity_gt}
+        if item_ids is not None:
+            filter["item.id"] = {"$in": item_ids}
+        cursor = self._collection.find(
+            filter, sort=[("_id", BaseMongoDbRepository.ASCENDING_ORDER)], limit=limit
+        )
+        return list(cursor)
