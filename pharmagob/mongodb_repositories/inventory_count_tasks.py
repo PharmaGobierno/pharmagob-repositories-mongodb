@@ -1,9 +1,10 @@
 from typing import Dict, Optional
 
+from ._claim import ClaimMixin
 from .base import BaseMongoDbRepository
 
 
-class InventoryCountTasksRepository(BaseMongoDbRepository):
+class InventoryCountTasksRepository(ClaimMixin, BaseMongoDbRepository):
     def increment(
         self,
         entity_id: str,
