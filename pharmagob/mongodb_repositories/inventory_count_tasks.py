@@ -1,16 +1,23 @@
-from typing import Dict
+from typing import Dict, Optional
 
 from .base import BaseMongoDbRepository
 
 
 class InventoryCountTasksRepository(BaseMongoDbRepository):
     def increment(
-        self, task_id: str, *, umu_id: str, counters: Dict[str, int]
+        self,
+        entity_id: str,
+        *,
+        quantities: Dict[str, int],
+        umu_id: Optional[str] = None,
     ) -> int:
         """Atomically `$inc` the task counters (e.g. `lines.counted_quantity`)."""
+        filter = {"_id": entity_id}
+        if umu_id:
+            filter.update({"umu_id": umu_id})
         result = self._collection.update_one(
-            {"_id": task_id, "umu_id": umu_id},
-            {"$inc": counters},
+            filter,
+            {"$inc": quantities},
             upsert=False,
         )
         return result.modified_count

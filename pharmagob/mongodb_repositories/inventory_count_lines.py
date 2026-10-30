@@ -1,14 +1,15 @@
-from time import time
 from typing import Any, Iterator, List, Optional, Tuple, Union
 
 from ._utils import convert_conditions_to_mongo
 from .base import BaseMongoDbRepository
 
-NOT_DELETED = {"$ne": True}
-
 
 class InventoryCountLinesRepository(BaseMongoDbRepository):
-    """Lines are soft deleted (`is_deleted`) and purged later in batches (D-09)."""
+    """Lines are soft deleted (`deleted_at`) and purged later in batches (D-09).
+
+    A line is alive while `deleted_at` is null or missing; every read of this
+    repository leaves the soft deleted ones out.
+    """
 
     DEFAULT_PURGE_BATCH_SIZE = 1000
 
@@ -20,7 +21,7 @@ class InventoryCountLinesRepository(BaseMongoDbRepository):
         sort: Optional[List[Tuple[str, int]]] = None,
         projection: Optional[Union[list, dict]] = None,
     ) -> Optional[dict]:
-        filter = {"_id": document_id, "is_deleted": NOT_DELETED}
+        filter = {"_id": document_id, "deleted_at": None}
         if umu_id:
             filter.update({"umu_id": umu_id})
         return self._collection.find_one(filter, sort=sort, projection=projection)
@@ -38,7 +39,7 @@ class InventoryCountLinesRepository(BaseMongoDbRepository):
         parsed_filter: dict = {}
         if and_conditions:
             parsed_filter = convert_conditions_to_mongo(and_conditions)
-        parsed_filter["is_deleted"] = NOT_DELETED
+        parsed_filter["deleted_at"] = None
         if umu_id:
             parsed_filter.update({"umu_id": umu_id})
         skip = (page - 1) * limit
@@ -52,42 +53,50 @@ class InventoryCountLinesRepository(BaseMongoDbRepository):
         )
         return total_count, map(lambda item: item, results)
 
-    def soft_delete_by_task(self, task_id: str, *, umu_id: str) -> int:
+    def soft_delete_by_task(
+        self,
+        task_id: str,
+        *,
+        deleted_at: int,
+        umu_id: Optional[str] = None,
+    ) -> int:
         """Mark the lines of a task as deleted without removing them.
 
         `is_open` goes to False so the unique partial index (D-02) releases
         the location contents for other tasks.
         """
+        filter = {"task.id": task_id, "deleted_at": None}
+        if umu_id:
+            filter.update({"umu_id": umu_id})
         result = self._collection.update_many(
-            {"umu_id": umu_id, "task.id": task_id, "is_deleted": NOT_DELETED},
-            {
-                "$set": {
-                    "is_deleted": True,
-                    "deleted_at": round(time() * 1000),
-                    "is_open": False,
-                }
-            },
+            filter,
+            {"$set": {"deleted_at": deleted_at, "is_open": False}},
             upsert=False,
         )
         return result.modified_count
 
     def delete_many(
         self,
-        task_id: str,
+        and_conditions: Optional[List[Tuple[str, str, Any]]],
         *,
-        umu_id: str,
-        limit: int = DEFAULT_PURGE_BATCH_SIZE,
+        limit: Optional[int] = None,
     ) -> int:
-        """Physically delete one batch of soft deleted lines of a task.
+        """Physically delete one batch of the lines matching the conditions.
 
-        Returns the deleted count; the caller repeats until it returns 0.
+        Used by the deferred purge of soft deleted lines, which sends
+        `("deleted_at", "not in", [None])`. At most `limit` documents are
+        deleted (default `DEFAULT_PURGE_BATCH_SIZE`); the caller repeats until
+        it returns 0. Conditions are required so a bare call can never wipe
+        the collection.
         """
+        if not and_conditions:
+            raise ValueError("delete_many requires at least one condition")
         ids = [
             doc["_id"]
             for doc in self._collection.find(
-                {"umu_id": umu_id, "task.id": task_id, "is_deleted": True},
+                convert_conditions_to_mongo(and_conditions),
                 projection={"_id": 1},
-                limit=limit,
+                limit=limit or self.DEFAULT_PURGE_BATCH_SIZE,
             )
         ]
         if not ids:
