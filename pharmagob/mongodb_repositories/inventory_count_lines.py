@@ -1,10 +1,21 @@
-from typing import Any, Iterator, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 
 from pymongo.errors import BulkWriteError
 
 from ._claim import ClaimMixin
+from ._search import (
+    any_of,
+    autocomplete,
+    equals,
+    exists,
+    in_range,
+    paginated_search,
+)
 from ._utils import convert_conditions_to_mongo
 from .base import BaseMongoDbRepository
+
+ITEM_SEARCH_INDEX = "autocomplete_item_id_foreign_id_resolved_at"
+ADJUSTMENT_SIGNS = ("POSITIVE", "NEGATIVE")
 
 
 class InventoryCountLinesRepository(ClaimMixin, BaseMongoDbRepository):
@@ -147,3 +158,77 @@ class InventoryCountLinesRepository(ClaimMixin, BaseMongoDbRepository):
         # already exists under that `_id` is a duplicate, any other is locked.
         failed_id = data[write_error["index"]]["_id"]
         return self._collection.count_documents({"_id": failed_id}, limit=1) > 0
+
+    def search_by_item(
+        self,
+        search_str: str,
+        *,
+        page: Optional[int] = None,
+        limit: Optional[int] = None,
+        sort: Optional[Dict[str, int]] = None,
+        umu_id: Optional[str] = None,
+        task_id: Optional[str] = None,
+        status: Optional[List[str]] = None,
+        lot: Optional[str] = None,
+        is_in_system: Optional[bool] = None,
+        adjustment_sign: Optional[str] = None,
+        resolution_type: Optional[str] = None,
+        resolution_origin: Optional[str] = None,
+        resolved_at_gt: Optional[int] = None,
+        resolved_at_lt: Optional[int] = None,
+    ) -> Tuple[int, List[dict]]:
+        """Search by item key, `item.id` or `item.foreign_id` (Atlas).
+
+        `adjustment_sign` is POSITIVE or NEGATIVE and reads the sign of
+        `resolution.adjustment_quantity`. Soft deleted lines never match.
+        """
+        page = page or 1
+        limit = limit or BaseMongoDbRepository.DEFAULT_QUERY_LIMIT
+        filters: List[dict] = []
+        if umu_id:
+            filters.append(equals("umu_id", umu_id))
+        if task_id:
+            filters.append(equals("task.id", task_id))
+        if status:
+            filters.append(any_of("status", status))
+        if lot:
+            filters.append(equals("lot", lot))
+        if is_in_system is not None:
+            filters.append(equals("is_in_system", is_in_system))
+        if resolution_type:
+            filters.append(equals("resolution.type", resolution_type))
+        if resolution_origin:
+            filters.append(equals("resolution.origin", resolution_origin))
+        resolved_at = in_range("resolution.resolved_at", resolved_at_gt, resolved_at_lt)
+        if resolved_at:
+            filters.append(resolved_at)
+        if adjustment_sign:
+            if adjustment_sign not in ADJUSTMENT_SIGNS:
+                raise ValueError(f"adjustment_sign must be one of {ADJUSTMENT_SIGNS}")
+            filters.append(
+                in_range(
+                    "resolution.adjustment_quantity",
+                    gt=0 if adjustment_sign == "POSITIVE" else None,
+                    lt=0 if adjustment_sign == "NEGATIVE" else None,
+                )
+            )
+        search: dict = {
+            "index": ITEM_SEARCH_INDEX,
+            "compound": {
+                "must": [
+                    {
+                        "compound": {
+                            "should": [
+                                autocomplete("item.id", search_str),
+                                autocomplete("item.foreign_id", search_str),
+                            ],
+                            "minimumShouldMatch": 1,
+                        }
+                    }
+                ],
+                "filter": filters,
+                "mustNot": [exists("deleted_at")],
+            },
+            "sort": sort or {"created_at": BaseMongoDbRepository.ASCENDING_ORDER},
+        }
+        return paginated_search(self._collection, search, page=page, limit=limit)
