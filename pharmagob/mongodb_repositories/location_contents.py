@@ -1,6 +1,14 @@
 from typing import Any, Dict, List, Optional, Tuple
 
+from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
+
 from .base import BaseMongoDbRepository
+
+# Written only when the upsert creates the document; `quantity`, `last_author`
+# and `updated_at` are written by `$inc`/`$set`, and a path cannot appear in two
+# operators of the same update.
+_INSERT_ONLY_EXCLUDED = {"_id", "quantity", "last_author", "updated_at"}
 
 
 class LocationContentRepository(BaseMongoDbRepository):
@@ -232,4 +240,81 @@ class LocationContentRepository(BaseMongoDbRepository):
                     "umu_id": umu_id,
                 }
             )
+        )
+
+    def increment_quantity(
+        self,
+        location_content_id: str,
+        delta: int,
+        *,
+        last_author: dict,
+        updated_at: int,
+        min_quantity: Optional[int] = None,
+        umu_id: Optional[str] = None,
+    ) -> Optional[dict]:
+        """Atomic `$inc` of `quantity`; returns the document AFTER the change.
+
+        A decrement must carry `min_quantity >= abs(delta)`: it goes into the
+        filter (`quantity >= min_quantity`), so stock can never go negative.
+        Returns None when nothing matched: the location content does not
+        exist, belongs to another UMU, or has less than `min_quantity`.
+        """
+        if delta == 0:
+            raise ValueError("delta cannot be 0")
+        if delta < 0 and (min_quantity is None or min_quantity < -delta):
+            raise ValueError("a decrement requires min_quantity >= abs(delta)")
+        filter: Dict[str, Any] = {"_id": location_content_id}
+        if umu_id:
+            filter["umu_id"] = umu_id
+        if min_quantity is not None:
+            filter["quantity"] = {"$gte": min_quantity}
+        return self._collection.find_one_and_update(
+            filter,
+            {
+                "$inc": {"quantity": delta},
+                "$set": {"last_author": last_author, "updated_at": updated_at},
+            },
+            upsert=False,
+            return_document=ReturnDocument.AFTER,
+        )
+
+    def upsert_increment_quantity(
+        self,
+        location_content_id: str,
+        delta: int,
+        *,
+        insert_data: dict,
+        last_author: dict,
+        updated_at: int,
+    ) -> dict:
+        """Create the location content with `quantity = delta`, or add `delta`.
+
+        `insert_data` is the full document; only on insert it provides the
+        rest of the fields, so an existing document keeps its `item`,
+        `expiration_date` and `created_at`. Returns the document AFTER.
+        """
+        if delta <= 0:
+            raise ValueError("the upsert only increments")
+        update = {
+            "$inc": {"quantity": delta},
+            "$set": {"last_author": last_author, "updated_at": updated_at},
+            "$setOnInsert": {
+                key: value
+                for key, value in insert_data.items()
+                if key not in _INSERT_ONLY_EXCLUDED
+            },
+        }
+        try:
+            return self._upsert(location_content_id, update)
+        except DuplicateKeyError:
+            # Two first upserts of the same `_id` raced: the loser finds the
+            # document on the retry.
+            return self._upsert(location_content_id, update)
+
+    def _upsert(self, location_content_id: str, update: dict) -> dict:
+        return self._collection.find_one_and_update(
+            {"_id": location_content_id},
+            update,
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
         )

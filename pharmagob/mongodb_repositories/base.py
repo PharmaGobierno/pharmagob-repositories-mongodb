@@ -43,6 +43,22 @@ class BaseMongoDbRepository:
         )
         return result.modified_count  # number of documents that were modified
 
+    def update_if(self, document_id, *, expected: dict, data: dict) -> int:
+        """`$set` `data` only if the document still matches `expected`.
+
+        `expected` is a plain Mongo filter merged with the `_id`, e.g.
+        `{"status": "CREATED"}` or `{"status": {"$ne": "CANCELLED"}}`.
+        Returns 1 when this call won the transition and 0 when the document
+        does not exist or already moved on (`matched_count`, so an update
+        that sets the same values still counts as a win).
+        """
+        result = self._collection.update_one(
+            {"_id": document_id, **expected},
+            {"$set": data},
+            upsert=False,
+        )
+        return result.matched_count
+
     def set(
         self, document_id, *, data: dict, write_only_if_insert: bool = False
     ) -> int:
