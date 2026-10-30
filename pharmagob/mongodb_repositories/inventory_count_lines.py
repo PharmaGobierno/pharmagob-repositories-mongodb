@@ -1,5 +1,7 @@
 from typing import Any, Iterator, List, Optional, Tuple, Union
 
+from pymongo.errors import BulkWriteError
+
 from ._claim import ClaimMixin
 from ._utils import convert_conditions_to_mongo
 from .base import BaseMongoDbRepository
@@ -105,3 +107,43 @@ class InventoryCountLinesRepository(ClaimMixin, BaseMongoDbRepository):
             return 0
         result = self._collection.delete_many({"_id": {"$in": ids}})
         return result.deleted_count
+
+    def insert_many_ignore_duplicates(self, data: List[dict]) -> Tuple[int, int, int]:
+        """`insert_many(ordered=False)` that classifies duplicate key errors.
+
+        Returns `(inserted, duplicated, locked)`: `duplicated` collided on the
+        line `_id` (redelivery, or a repeated key inside the same task) and
+        `locked` collided on the `{umu_id, task.count_type,
+        location_content_id}` partial unique index (the location content is
+        open in another task of the same type, D-02). Anything that is not a
+        duplicate key error is raised.
+        """
+        if not data:
+            return 0, 0, 0
+        try:
+            self._collection.insert_many(data, ordered=False)
+        except BulkWriteError as error:
+            details = error.details
+            write_errors = details.get("writeErrors", [])
+            if details.get("writeConcernErrors") or any(
+                write_error.get("code") != 11000 for write_error in write_errors
+            ):
+                raise
+            duplicated = sum(
+                1 for write_error in write_errors if self._collided_on_id(write_error, data)
+            )
+            return (
+                details.get("nInserted", 0),
+                duplicated,
+                len(write_errors) - duplicated,
+            )
+        return len(data), 0, 0
+
+    def _collided_on_id(self, write_error: dict, data: List[dict]) -> bool:
+        key_pattern = write_error.get("keyPattern")
+        if key_pattern is not None:
+            return "_id" in key_pattern
+        # The server did not say which index (older servers): a line that
+        # already exists under that `_id` is a duplicate, any other is locked.
+        failed_id = data[write_error["index"]]["_id"]
+        return self._collection.count_documents({"_id": failed_id}, limit=1) > 0
