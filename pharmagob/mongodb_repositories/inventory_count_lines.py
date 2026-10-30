@@ -1,10 +1,11 @@
 from typing import Any, Iterator, List, Optional, Tuple, Union
 
+from ._claim import ClaimMixin
 from ._utils import convert_conditions_to_mongo
 from .base import BaseMongoDbRepository
 
 
-class InventoryCountLinesRepository(BaseMongoDbRepository):
+class InventoryCountLinesRepository(ClaimMixin, BaseMongoDbRepository):
     """Lines are soft deleted (`deleted_at`) and purged later in batches (D-09).
 
     A line is alive while `deleted_at` is null or missing; every read of this
@@ -12,6 +13,7 @@ class InventoryCountLinesRepository(BaseMongoDbRepository):
     """
 
     DEFAULT_PURGE_BATCH_SIZE = 1000
+    CLAIM_EXTRA_FILTER = {"deleted_at": None}
 
     def get(
         self,
