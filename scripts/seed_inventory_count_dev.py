@@ -2,7 +2,7 @@
 domain models (REP-07, guide section 2.4).
 
     python scripts/seed_inventory_count_dev.py                      # seed the default UMU
-    python scripts/seed_inventory_count_dev.py --umu MCIMB003562    # another UMU
+    python scripts/seed_inventory_count_dev.py --umu MCIMB001812    # another UMU
     python scripts/seed_inventory_count_dev.py --reset              # delete what the seed created, then seed
     python scripts/seed_inventory_count_dev.py --reset --no-seed    # only delete
     python scripts/seed_inventory_count_dev.py --db other           # another database name
@@ -116,7 +116,7 @@ from pharmagob.v1.models.minified.min_models import (  # noqa: E402
 from pharmagob.v1.services.inventory_count_rules import CountEntry, evaluate  # noqa: E402
 from pharmagob.v1.services.reference_counters import ReferenceCounterService  # noqa: E402
 
-DEFAULT_UMU = "MCIMB003562"  # has general and FARB stock in DEV (2026-11-03)
+DEFAULT_UMU = "908"  # the UMU of DEV (farmacias-dev) with general and FARB stock >= 10 (2026-11-03)
 SEED_PREFIX = "[SEED]"
 TASKS_ENTITY = InventoryCountTaskModel.get_entity_name()
 MIN_QUANTITY = 10  # only location contents with quantity >= 10, so K - 9 stays positive

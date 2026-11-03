@@ -52,15 +52,17 @@ Search → Create Search Index → JSON Editor: paste only the `mappings` object
 
 | Environment | Cluster | Database | Created on | Status |
 | --- | --- | --- | --- | --- |
-| DEV | `farmacias-prod.ah5rw.mongodb.net` (the cluster shared with PROD; the DEV database is `pharmagob`, PROD is `db-farmacias-prod`) | `pharmagob` | 2026-11-03, option A | `READY` (the three) |
-| PROD | INF-07, same JSON with `database: db-farmacias-prod` | | | pending |
+| DEV | `farmacias-dev.chyr2.mongodb.net` (GCP project `traxion-farma-gob-dev`; the `.env` of `dispatch-records-create`) | `pharmagob` | 2026-11-03, option A | `READY` (the three) |
+| PROD | `farmacias-prod.ah5rw.mongodb.net`, INF-07 with the same JSON | `pharmagob` | | pending |
+
+**Dev always to dev, never to prod.** `scripts/_db.py` refuses any host whose name contains `prod` unless `ALLOW_PROD=1` is set on purpose. Some service `.env` files in the workspace point to PROD (`location-contents/.env`) or to an old dev cluster with only `*-deprecate` collections (`pharma-dev.chyr2`): use the one of `dispatch-records-create`.
 
 ## DEV seed: `scripts/seed_inventory_count_dev.py`
 
 Loads test data built **with the domain models** (never hand written) into `inventory-count-tasks`, `inventory-count-lines`, `inventory-count-events`, `inventory-count-schedules` and `reference-counters`, over real location contents, items and locations of one UMU. `location-contents` is never modified. See the module docstring for the full behaviour.
 
 ```bash
-python scripts/seed_inventory_count_dev.py                     # default UMU MCIMB003562 (has general and FARB stock in DEV)
+python scripts/seed_inventory_count_dev.py                     # default UMU 908 (the DEV UMU with general and FARB stock >= 10)
 python scripts/seed_inventory_count_dev.py --umu MCIMB001812   # another UMU with STANDARD + FARB locations and stock >= 10
 python scripts/seed_inventory_count_dev.py --reset             # delete the [SEED] documents of the UMU, then seed again
 python scripts/seed_inventory_count_dev.py --reset --no-seed   # only delete
@@ -90,7 +92,7 @@ What it leaves for the default UMU (reference ids depend on the counter):
 Runs the 12 checks of the REP-07 guide (section 2.3) through the repository methods, so the validated pipeline is the one the services run. It waits (default 180 s) until Atlas has indexed the seed.
 
 ```bash
-python scripts/validate_atlas_searches.py --umu MCIMB003562
+python scripts/validate_atlas_searches.py --umu 908
 ```
 
-Result in DEV on 2026-11-03: `12/12 checks passed` (output in the PR of REP-07).
+Result in DEV (`farmacias-dev`, UMU 908) on 2026-11-03: `12/12 checks passed` (output in the PR of REP-07).
