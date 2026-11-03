@@ -1,0 +1,22 @@
+{
+  "name": "autocomplete_schedule_name_created_at",
+  "database": "<database>",
+  "collectionName": "inventory-count-schedules",
+  "mappings": {
+    "dynamic": false,
+    "fields": {
+      "schedule_name": {
+        "type": "autocomplete",
+        "analyzer": "lucene.standard",
+        "tokenization": "edgeGram",
+        "minGrams": 2,
+        "maxGrams": 20,
+        "foldDiacritics": true
+      },
+      "umu_id": { "type": "token" },
+      "status": { "type": "token" },
+      "frequency": { "type": "token" },
+      "created_at": { "type": "number" }
+    }
+  }
+}

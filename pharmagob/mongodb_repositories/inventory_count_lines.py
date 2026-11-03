@@ -7,7 +7,7 @@ from ._search import (
     any_of,
     autocomplete,
     equals,
-    exists,
+    has_number,
     in_range,
     paginated_search,
 )
@@ -227,7 +227,9 @@ class InventoryCountLinesRepository(ClaimMixin, BaseMongoDbRepository):
                     }
                 ],
                 "filter": filters,
-                "mustNot": [exists("deleted_at")],
+                # Not `exists`: live lines carry `deleted_at: null` and Atlas
+                # treats a null key as existing (see `_search.has_number`).
+                "mustNot": [has_number("deleted_at")],
             },
             "sort": sort or {"created_at": BaseMongoDbRepository.ASCENDING_ORDER},
         }

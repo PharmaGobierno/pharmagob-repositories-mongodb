@@ -435,3 +435,6 @@ pip-selfcheck.json
 
 # test reports
 test-reports
+
+# [Ss]cripts above is for virtualenv folders; the repo scripts are versioned
+!/scripts/

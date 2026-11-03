@@ -12,7 +12,19 @@ def any_of(path: str, values: List[Any]) -> dict:
 
 
 def exists(path: str) -> dict:
+    """Path present in the document. Careful with optional fields that the
+    models write as `null` (`.dict()` keeps every key): Atlas Search treats a
+    key with a null value as existing, so `exists` cannot tell `deleted_at:
+    null` from `deleted_at: 1760000000000`. Use `has_number` for those."""
     return {"exists": {"path": path}}
+
+
+def has_number(path: str) -> dict:
+    """True only when the field holds a number (epoch ms, quantities): null is
+    not indexed as `number`, so a range from 0 leaves it out. This is how the
+    soft deleted lines (`deleted_at` numeric) are excluded; verified against
+    Atlas in REP-07 (`exists` returned every line, `range` only the deleted)."""
+    return {"range": {"path": path, "gte": 0}}
 
 
 def autocomplete(path: str, query: str) -> dict:

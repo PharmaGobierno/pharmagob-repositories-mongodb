@@ -123,7 +123,8 @@ def test_line_item_search_matches_id_or_foreign_id_and_hides_deleted(
         {"equals": {"path": "resolution.origin", "value": "AUDIT"}},
         {"range": {"path": "resolution.resolved_at", "gt": 1, "lt": 2}},
     ]
-    assert compound["mustNot"] == [{"exists": {"path": "deleted_at"}}]
+    # A numeric range, not `exists`: Atlas treats `deleted_at: null` as existing (REP-07)
+    assert compound["mustNot"] == [{"range": {"path": "deleted_at", "gte": 0}}]
 
 
 @pytest.mark.parametrize(
