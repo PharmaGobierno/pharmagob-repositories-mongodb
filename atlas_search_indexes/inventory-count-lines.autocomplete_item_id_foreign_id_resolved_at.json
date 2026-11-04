@@ -1,0 +1,74 @@
+{
+  "name": "autocomplete_item_id_foreign_id_resolved_at",
+  "database": "<database>",
+  "collectionName": "inventory-count-lines",
+  "mappings": {
+    "dynamic": false,
+    "fields": {
+      "item": {
+        "type": "document",
+        "fields": {
+          "id": {
+            "type": "autocomplete",
+            "analyzer": "lucene.standard",
+            "tokenization": "edgeGram",
+            "minGrams": 2,
+            "maxGrams": 15,
+            "foldDiacritics": true
+          },
+          "foreign_id": {
+            "type": "autocomplete",
+            "analyzer": "lucene.standard",
+            "tokenization": "edgeGram",
+            "minGrams": 2,
+            "maxGrams": 15,
+            "foldDiacritics": true
+          }
+        }
+      },
+      "task": {
+        "type": "document",
+        "fields": {
+          "id": {
+            "type": "token"
+          }
+        }
+      },
+      "resolution": {
+        "type": "document",
+        "fields": {
+          "type": {
+            "type": "token"
+          },
+          "origin": {
+            "type": "token"
+          },
+          "resolved_at": {
+            "type": "number"
+          },
+          "adjustment_quantity": {
+            "type": "number"
+          }
+        }
+      },
+      "umu_id": {
+        "type": "token"
+      },
+      "status": {
+        "type": "token"
+      },
+      "lot": {
+        "type": "token"
+      },
+      "is_in_system": {
+        "type": "boolean"
+      },
+      "deleted_at": {
+        "type": "number"
+      },
+      "created_at": {
+        "type": "number"
+      }
+    }
+  }
+}

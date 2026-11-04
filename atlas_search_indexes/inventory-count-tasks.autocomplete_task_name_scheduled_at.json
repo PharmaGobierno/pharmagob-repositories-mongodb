@@ -1,0 +1,23 @@
+{
+  "name": "autocomplete_task_name_scheduled_at",
+  "database": "<database>",
+  "collectionName": "inventory-count-tasks",
+  "mappings": {
+    "dynamic": false,
+    "fields": {
+      "task_name": {
+        "type": "autocomplete",
+        "analyzer": "lucene.standard",
+        "tokenization": "edgeGram",
+        "minGrams": 2,
+        "maxGrams": 20,
+        "foldDiacritics": true
+      },
+      "umu_id": { "type": "token" },
+      "count_type": { "type": "token" },
+      "status": { "type": "token" },
+      "cyclic_mode": { "type": "token" },
+      "scheduled_at": { "type": "number" }
+    }
+  }
+}

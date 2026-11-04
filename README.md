@@ -30,3 +30,5 @@ The `search_by_*` methods that use Atlas Search need these search indexes, versi
 | `autocomplete_task_name_scheduled_at` | `inventory-count-tasks` | `task_name` (autocomplete), `umu_id`, `count_type`, `status`, `cyclic_mode`, `scheduled_at` |
 | `autocomplete_schedule_name_created_at` | `inventory-count-schedules` | `schedule_name` (autocomplete), `umu_id`, `status`, `frequency`, `created_at` |
 | `autocomplete_item_id_foreign_id_resolved_at` | `inventory-count-lines` | `item.id`, `item.foreign_id` (autocomplete), `umu_id`, `task.id`, `status`, `lot`, `is_in_system`, `resolution.*`, `deleted_at`, `created_at` |
+
+The definitions live in [`atlas_search_indexes/`](atlas_search_indexes/README.md) (one JSON per index, full Atlas API format) together with the scripts that create them, seed DEV with documents built from the domain models and run the 12 search checks (`scripts/create_atlas_search_indexes.py`, `scripts/seed_inventory_count_dev.py`, `scripts/validate_atlas_searches.py`). Soft deleted lines are excluded from `search_by_item` with a numeric range on `deleted_at` (`_search.has_number`), never with `exists`: Atlas treats `deleted_at: null` as existing.
