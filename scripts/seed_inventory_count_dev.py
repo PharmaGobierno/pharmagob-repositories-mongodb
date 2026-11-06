@@ -168,6 +168,16 @@ S1_NEXT_RUN = ts(2026, 11, 10, 14)
 
 T5_SCHEDULED = ts(2026, 11, 24, 14)
 
+# T6: a cyclic (MANUAL) task resolved end to end, so CU-48 can be checked in
+# the CYCLIC modality (adjustments and a rejection with count_type CYCLIC).
+T6_SCHEDULED = ts(2026, 10, 29, 14)
+T6_RELEASED = T6_SCHEDULED + 2_600
+T6_R1 = ts(2026, 10, 29, 16)
+T6_R2 = ts(2026, 10, 30, 16)
+T6_AUDIT = ts(2026, 10, 31, 15)
+T6_RESOLVED = ts(2026, 10, 31, 17)
+T6_CLOSED = ts(2026, 10, 31, 18)
+
 
 # --------------------------------------------------------------------------- helpers
 
@@ -240,7 +250,7 @@ class Seed:
         self.farb = self.location_contents_repo.get_batch_after(
             self.umu_id, limit=50, location_label_code=FARB, quantity_gt=MIN_QUANTITY - 1
         )
-        needed_general, needed_farb = 30 + 12 + 5, 10 + 3
+        needed_general, needed_farb = 30 + 12 + 5 + 5, 10 + 3
         if len(self.general) < needed_general or len(self.farb) < needed_farb:
             raise SystemExit(
                 f"UMU {self.umu_id} has {len(self.general)} general and {len(self.farb)} FARB "
@@ -251,6 +261,7 @@ class Seed:
         self.t1_general = self.general[0:30]
         self.t3_general = self.general[30:42]
         self.t4_general = self.general[42:47]
+        self.t6_general = self.general[47:52]
         self.t2_farb = self.farb[0:10]
         self.t3_farb = self.farb[10:13]
         self.out_of_system = self._out_of_system_candidates(4)  # T1 uses four
@@ -694,6 +705,7 @@ class Seed:
         self.build_t4_cancelled()
         self.build_s1_schedule_and_t2()
         self.build_t5_scheduled()
+        self.build_t6_cyclic_resolved()
         for task in self.tasks:
             self.close_task_counters(task)
 
@@ -926,6 +938,57 @@ class Seed:
             scheduled_at=T5_SCHEDULED,
             created_at=ts(2026, 11, 3, 15),
             updated_at=ts(2026, 11, 3, 15),
+        )
+
+    def build_t6_cyclic_resolved(self) -> None:
+        """CU-48 in the CYCLIC modality: a manual cyclic task, closed, with one
+        positive adjustment (through audit), one negative adjustment, one
+        rejection and two lines closed by the rules. Every event of this task
+        carries `count_type = CYCLIC`."""
+        item_ids = sorted({lc["item"]["id"] for lc in self.t6_general})
+        t6 = self.task(
+            "T6",
+            "Cíclico resuelto",
+            count_type=CountType.CYCLIC,
+            cyclic_mode=CyclicMode.MANUAL,
+            count_scope=CountScope.GENERAL,
+            status=TaskStatus.CLOSED,
+            scheduled_at=T6_SCHEDULED,
+            released_at=T6_RELEASED,
+            item_filter=CountItemFilterMin(item_ids=item_ids),
+            updated_at=T6_CLOSED,
+        )
+        lcs = iter(self.t6_general)
+        c1, c2 = self.counter_1, self.counter_2
+        line = lambda: self.line(t6, next(lcs), created_at=T6_RELEASED)  # noqa: E731
+        K = lambda ln: ln.kardex_initial_quantity  # noqa: E731
+
+        # ADJUSTMENT_POSITIVE through audit: rounds differ (case 14), the auditor validates +3.
+        ln = line(); self.count(ln, K(ln) + 3, author=c1, counted_at=T6_R1); self.count(ln, K(ln) + 1, author=c2, counted_at=T6_R2)  # case 14
+        self.validated_count(ln, K(ln) + 3, counted_at=T6_AUDIT)  # round 3 -> ADJUSTMENT
+        self.adjust(ln, resolved_at=T6_RESOLVED)  # +3
+        # ADJUSTMENT_NEGATIVE confirmed by the two counters (case 2).
+        ln = line(); self.count(ln, K(ln) - 4, author=c1, counted_at=T6_R1); self.count(ln, K(ln) - 4, author=c2, counted_at=T6_R2)  # case 2
+        self.adjust(ln, resolved_at=T6_RESOLVED)  # -4
+        # REJECTED from audit (false positive, case 14).
+        ln = line(); self.count(ln, 0, author=c1, counted_at=T6_R1); self.count(ln, 6, author=c2, counted_at=T6_R2)  # case 14
+        self.reject(ln, resolved_at=T6_RESOLVED, origin=ResolutionOrigin.AUDIT)
+        # 2 CLOSED by the rules (case 7).
+        for _ in range(2):
+            ln = line(); self.count(ln, K(ln), author=c1, counted_at=T6_R1)  # case 7
+
+        t6_lines = [line_ for line_ in self.lines if line_.task.id == t6._id]
+        assert len(t6_lines) == 5 and all(not line_.is_open for line_ in t6_lines)
+        self.event(
+            Events.TASK_RELEASED, t6, self.planner, AuditActivity.MODIFICATION, T6_RELEASED,
+            context={"total_quantity": 5, "omitted_quantity": 0, "is_zero_stock_included": False, "items_without_stock": []},
+        )
+        for author, at, round_ in ((c1, T6_R1, 1), (c2, T6_R2, 2)):
+            quantity = sum(1 for line_ in t6_lines for c in line_.counts if c.counted_at == at and c.author.id == author.id)
+            self.captured(t6, author, at, quantity, round_)
+        self.event(
+            Events.TASK_CLOSED, t6, self.auditor, AuditActivity.MODIFICATION, T6_CLOSED,
+            context={"resolved_quantity": 5, "adjusted_quantity": 2, "rejected_quantity": 1},
         )
 
     # ---- persistence
