@@ -459,6 +459,13 @@ class Seed:
         line.status = result.status
         case = result.case if result.case is not None else (line.rule.case if line.rule else None)
         line.rule = CountRuleMin(case=case, note=result.note)
+        # H-28: the signed difference still to apply lives in a flat field while the
+        # line waits in ADJUSTMENT, so Adjustments can filter by sign (resolution is None).
+        line.pending_adjustment_quantity = (
+            entry.counted_quantity - entry.kardex_snapshot_quantity
+            if result.status is LineStatus.ADJUSTMENT
+            else None
+        )
         line.last_author = author
         line.updated_at = counted_at
         if result.status is LineStatus.CLOSED:
@@ -527,7 +534,8 @@ class Seed:
 
     def applying(self, line: InventoryCountLineModel, *, resolved_at: int) -> None:
         """ADJUSTMENT -> APPLYING (claim of ADJ-03, H-21). Written with the whole
-        `resolution` so the document is readable with `Model(**doc)`."""
+        `resolution` so the document is readable with `Model(**doc)`.
+        `pending_adjustment_quantity` is kept: the line is still pending for P-12 (H-28)."""
         assert line.status is LineStatus.ADJUSTMENT, f"{line.item.id}: expected ADJUSTMENT, got {line.status}"
         last = line.counts[-1]
         line.status = LineStatus.APPLYING
@@ -586,6 +594,7 @@ class Seed:
         attempted = last.counted_quantity - last.kardex_snapshot_quantity
         line.status = LineStatus.VALIDATION
         line.resolution = None
+        line.pending_adjustment_quantity = None  # no longer pending to apply (H-28)
         line.is_open = True
         line.context = {
             **(line.context or {}),
@@ -629,6 +638,7 @@ class Seed:
             adjustment_quantity=adjustment_quantity,
             final_quantity=final_quantity,
         )
+        line.pending_adjustment_quantity = None  # applied or rejected: the truth is in resolution (H-28)
         line.is_open = False
         line.last_author = author
         line.updated_at = resolved_at

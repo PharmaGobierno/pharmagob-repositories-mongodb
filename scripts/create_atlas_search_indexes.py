@@ -2,7 +2,8 @@
 
     python scripts/create_atlas_search_indexes.py              # create missing ones, wait for READY
     python scripts/create_atlas_search_indexes.py --status     # print the status of each index
-    python scripts/create_atlas_search_indexes.py --recreate   # drop + create (mapping changed)
+    python scripts/create_atlas_search_indexes.py --update     # mapping changed: rebuild in place, no downtime
+    python scripts/create_atlas_search_indexes.py --recreate   # drop + create (last resort)
     python scripts/create_atlas_search_indexes.py --db other   # another database name
 
 Connection: see `_db.py`. Needs MongoDB 7.0+ on Atlas (`createSearchIndexes`
@@ -82,6 +83,11 @@ def main() -> int:
     parser.add_argument("--db", help="database name (overrides MONGODB_DB / MONGO_DB_NAME)")
     parser.add_argument("--status", action="store_true", help="only print the status")
     parser.add_argument("--recreate", action="store_true", help="drop the index first if it exists")
+    parser.add_argument(
+        "--update",
+        action="store_true",
+        help="push the mapping of existing indexes in place (no downtime); new ones are created",
+    )
     parser.add_argument("--timeout", type=int, default=600, help="seconds to wait for READY")
     args = parser.parse_args()
 
@@ -103,6 +109,12 @@ def main() -> int:
             while current_status(collection, name) != "MISSING":
                 time.sleep(POLL_SECONDS)
             status = "MISSING"
+        if status != "MISSING" and args.update:
+            # Atlas rebuilds in place and keeps serving the old mapping until READY:
+            # the searches never go dark, unlike --recreate (drop + create).
+            print(f"updating {definition['collectionName']}.{name} ({status})")
+            collection.update_search_index(name, {"mappings": definition["mappings"]})
+            continue
         if status == "MISSING":
             ensure_collection(db, definition["collectionName"])
             print(f"creating {definition['collectionName']}.{name}")
