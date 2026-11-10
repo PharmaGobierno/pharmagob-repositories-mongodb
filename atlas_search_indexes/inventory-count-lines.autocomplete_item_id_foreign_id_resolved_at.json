@@ -51,6 +51,9 @@
           }
         }
       },
+      "pending_adjustment_quantity": {
+        "type": "number"
+      },
       "umu_id": {
         "type": "token"
       },

@@ -63,7 +63,9 @@ def main() -> int:
     live_line = lines_col.find_one({"task.id": t1_id, "deleted_at": None, "is_in_system": True})
     deleted_line = lines_col.find_one({"task.id": t4_id, "deleted_at": {"$ne": None}})
     validation_line = lines_col.find_one({"task.id": t1_id, "status": "VALIDATION", "is_in_system": True})
-    negative_line = lines_col.find_one({"task.id": t1_id, "resolution.adjustment_quantity": {"$lt": 0}})
+    negative_line = lines_col.find_one(
+        {"task.id": t1_id, "status": "ADJUSTMENT", "pending_adjustment_quantity": {"$lt": 0}}
+    )
     out_of_system_line = lines_col.find_one({"task.id": t1_id, "is_in_system": False})
     assert live_line and deleted_line and validation_line and negative_line and out_of_system_line, "seed incomplete"
 
@@ -119,9 +121,14 @@ def main() -> int:
         return count > 0 and all(r["status"] == "VALIDATION" for r in results), f"{count} lines, statuses {sorted({r['status'] for r in results})}"
 
     def check_7():
-        count, results = lines.search_by_item(key(negative_line), umu_id=umu, adjustment_sign="NEGATIVE")
-        quantities = [r["resolution"]["adjustment_quantity"] for r in results]
-        return count > 0 and all(q < 0 for q in quantities), f"{count} lines, adjustment quantities {quantities}"
+        # H-28: the sign filter reads `pending_adjustment_quantity` of lines still in ADJUSTMENT
+        count, results = lines.search_by_item(
+            key(negative_line), umu_id=umu, status=["ADJUSTMENT"], adjustment_sign="NEGATIVE"
+        )
+        quantities = [r.get("pending_adjustment_quantity") for r in results]
+        pending = all(q is not None and q < 0 for q in quantities)
+        unresolved = all(r.get("resolution") is None for r in results)
+        return count > 0 and pending and unresolved, f"{count} lines, pending quantities {quantities}, resolution None {unresolved}"
 
     def check_8():
         count, results = lines.search_by_item(key(deleted_line), umu_id=umu, task_id=t4_id)

@@ -44,9 +44,7 @@ def test_task_name_search_is_atlas_autocomplete_with_filters(db_manager, collect
     search, facet, _ = pipeline_of(collection)
     assert search["$search"]["index"] == TASK_NAME_SEARCH_INDEX
     compound = search["$search"]["compound"]
-    assert compound["must"] == [
-        {"autocomplete": {"query": "cíclico", "path": "task_name"}}
-    ]
+    assert compound["must"] == [{"autocomplete": {"query": "cíclico", "path": "task_name"}}]
     assert compound["filter"] == [
         {"equals": {"path": "umu_id", "value": "u1"}},
         {"equals": {"path": "count_type", "value": "CYCLIC"}},
@@ -67,9 +65,7 @@ def test_search_without_results_returns_zero(db_manager, collection):
 def test_schedule_name_search(db_manager, collection):
     repo = InventoryCountSchedulesRepository(db_manager, "inventory-count-schedules")
     stub_aggregate(collection, [], 0)
-    repo.search_by_schedule_name(
-        "semanal", umu_id="u1", status="ACTIVE", frequency="WEEKLY"
-    )
+    repo.search_by_schedule_name("semanal", umu_id="u1", status="ACTIVE", frequency="WEEKLY")
     search = pipeline_of(collection)[0]["$search"]
     assert search["index"] == SCHEDULE_NAME_SEARCH_INDEX
     assert search["compound"]["must"] == [
@@ -82,9 +78,7 @@ def test_schedule_name_search(db_manager, collection):
     ]
 
 
-def test_line_item_search_matches_id_or_foreign_id_and_hides_deleted(
-    db_manager, collection
-):
+def test_line_item_search_matches_id_or_foreign_id_and_hides_deleted(db_manager, collection):
     repo = InventoryCountLinesRepository(db_manager, "inventory-count-lines")
     stub_aggregate(collection, [{"_id": "l1"}], 1)
     repo.search_by_item(
@@ -127,18 +121,18 @@ def test_line_item_search_matches_id_or_foreign_id_and_hides_deleted(
     assert compound["mustNot"] == [{"range": {"path": "deleted_at", "gte": 0}}]
 
 
-@pytest.mark.parametrize(
-    "sign,bound", [("POSITIVE", {"gt": 0}), ("NEGATIVE", {"lt": 0})]
-)
-def test_line_adjustment_sign_reads_the_adjustment_quantity(
+@pytest.mark.parametrize("sign,bound", [("POSITIVE", {"gt": 0}), ("NEGATIVE", {"lt": 0})])
+def test_line_adjustment_sign_reads_the_pending_adjustment_quantity(
     sign, bound, db_manager, collection
 ):
+    # H-28: while the line is in ADJUSTMENT `resolution` is None, so the sign
+    # comes from the flat `pending_adjustment_quantity` (domain v1.6.6).
     repo = InventoryCountLinesRepository(db_manager, "inventory-count-lines")
     stub_aggregate(collection, [], 0)
     repo.search_by_item("x", adjustment_sign=sign)
-    assert pipeline_of(collection)[0]["$search"]["compound"]["filter"] == [
-        {"range": {"path": "resolution.adjustment_quantity", **bound}}
-    ]
+    filters = pipeline_of(collection)[0]["$search"]["compound"]["filter"]
+    assert filters == [{"range": {"path": "pending_adjustment_quantity", **bound}}]
+    assert "resolution.adjustment_quantity" not in str(filters)
 
 
 def test_line_unknown_adjustment_sign_is_rejected(db_manager, collection):

@@ -180,7 +180,11 @@ class InventoryCountLinesRepository(ClaimMixin, BaseMongoDbRepository):
         """Search by item key, `item.id` or `item.foreign_id` (Atlas).
 
         `adjustment_sign` is POSITIVE or NEGATIVE and reads the sign of
-        `resolution.adjustment_quantity`. Soft deleted lines never match.
+        `pending_adjustment_quantity`, the difference still to be applied
+        that is set while the line is in ADJUSTMENT/APPLYING (H-28, domain
+        v1.6.6); `resolution.adjustment_quantity` is None until the line is
+        resolved, so it cannot drive this filter. Soft deleted lines never
+        match.
         """
         page = page or 1
         limit = limit or BaseMongoDbRepository.DEFAULT_QUERY_LIMIT
@@ -207,7 +211,7 @@ class InventoryCountLinesRepository(ClaimMixin, BaseMongoDbRepository):
                 raise ValueError(f"adjustment_sign must be one of {ADJUSTMENT_SIGNS}")
             filters.append(
                 in_range(
-                    "resolution.adjustment_quantity",
+                    "pending_adjustment_quantity",
                     gt=0 if adjustment_sign == "POSITIVE" else None,
                     lt=0 if adjustment_sign == "NEGATIVE" else None,
                 )

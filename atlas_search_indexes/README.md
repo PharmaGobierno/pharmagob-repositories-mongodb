@@ -18,7 +18,9 @@ One JSON per index, in the full format accepted by the Atlas Administration API 
 - Nested fields (`item`, `task`, `resolution`) are mapped as `document`.
 - `deleted_at` is mapped as `number` and the soft deleted lines are excluded with a **numeric range** (`mustNot: [{range: {path: "deleted_at", gte: 0}}]`, helper `_search.has_number`), **not with `exists`**. Verified against Atlas DEV on 2026-11-03: a live line is stored as `deleted_at: null` (`.dict()` keeps every key) and the `exists` operator treats a null key as existing, so `mustNot: exists` returned 0 lines out of 60, while the range matched exactly the 5 deleted ones. The same applies to any optional field written as `null`.
 
-**If a mapping changes, the index has to be dropped and created again**: Atlas does not apply mapping changes to an existing index (`--recreate` below).
+- `pending_adjustment_quantity` (lines) is mapped as `number`: it is the signed difference still to apply, set while the line is in `ADJUSTMENT` / `APPLYING` (H-28, domain v1.6.6), and it is what `search_by_item(adjustment_sign=…)` filters. `resolution.adjustment_quantity` stays mapped for the histories but is `null` on pending lines, so it cannot drive that filter.
+
+**If a mapping changes, push it with `--update`** (below): Atlas rebuilds the index in place and keeps serving the old mapping until the new one is `READY`, so the searches never go dark. `--recreate` (drop + create) is the last resort. Added on 2026-11-10 for the `pending_adjustment_quantity` field.
 
 ## How to create them
 
@@ -32,7 +34,8 @@ pip install -r scripts/requirements-seed.txt -e .
 # connection: MONGODB_URI + MONGODB_DB, or the MONGO_DB_* variables of a service .env (infra-mongodb-python)
 python scripts/create_atlas_search_indexes.py            # create the missing ones, wait for READY
 python scripts/create_atlas_search_indexes.py --status   # only print the status (exit 1 if any is not READY)
-python scripts/create_atlas_search_indexes.py --recreate # drop + create (after a mapping change)
+python scripts/create_atlas_search_indexes.py --update   # mapping changed: rebuild in place, no downtime
+python scripts/create_atlas_search_indexes.py --recreate # drop + create (last resort)
 python scripts/create_atlas_search_indexes.py --db other # another database name
 ```
 
